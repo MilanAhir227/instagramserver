@@ -1,0 +1,72 @@
+// follow api
+
+
+const express = require('express');
+const router = express.Router();
+const USER = require('./userModel'); // Importing the USER model
+
+// Follow a user
+router.post('/users/:userId/follow', async (req, res) => {
+    try {
+        const { userId } = req.params; // ID of the user to follow
+        const { followId } = req.body; // ID of the user to follow
+
+        const user = await USER.findById(userId);
+        const userToFollow = await USER.findById(followId);
+
+        if (!user || !userToFollow) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Check if the user is already being followed
+        const isAlreadyFollowing = user.follow.some(f => f.uid.equals(followId));
+        if (isAlreadyFollowing) {
+            return res.status(400).json({ message: 'Already following this user' });
+        }
+
+        user.follow.push({ uid: followId });
+        userToFollow.following.push({ uid: userId });
+
+        await user.save();
+        await userToFollow.save();
+
+        res.json({ message: 'Successfully followed user' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+
+
+
+// Unfollow a user
+router.delete('/users/:userId/unfollow/:followId', async (req, res) => {
+    try {
+        const { userId, followId } = req.params;
+
+        const user = await USER.findById(userId);
+        const userToUnfollow = await USER.findById(followId);
+
+        if (!user || !userToUnfollow) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        const followIndex = user.follow.findIndex(f => f.uid.equals(followId));
+        const followingIndex = userToUnfollow.following.findIndex(f => f.uid.equals(userId));
+
+            if (followIndex === -1 || followingIndex === -1) {
+                return res.status(400).json({ message: 'Not following this user' });
+            }
+
+        user.follow.splice(followIndex, 1);
+        userToUnfollow.following.splice(followingIndex, 1);
+
+        await user.save();
+        await userToUnfollow.save();
+
+        res.json({ message: 'Successfully unfollowed user' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
